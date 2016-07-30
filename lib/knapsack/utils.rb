@@ -3,7 +3,9 @@
 require "digest/md5"
 require "digest/sha2"
 require "fileutils"
+require "open-uri"
 require "psych"
+require 'rubygems/package'
 
 module Knapsack
   module Utils
@@ -12,12 +14,9 @@ module Knapsack
 
       ensure_tree File.dirname(filename)
 
-      cmd = ["curl", "-L", "-s", "-S", url, "-o", filename]
+      tmpfile = open(url, ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE)
 
-      pid = Process.spawn(*cmd, :err => [:child, :out], :out => IO::NULL)
-      _, status = Process.wait2(pid)
-
-      status.success?
+      File.open(filename, "wb") { |file| file.write(tmpfile.read) }
     end
     module_function :download
 
@@ -38,7 +37,7 @@ module Knapsack
           raise failure_message % ["MD5", options[:md5], digest]
       end
 
-      cmd = ["tar", "-xf", filename, "-C", target]
+      cmd = ["bsdtar", "-xf", filename, "-C", target ]
 
       pid = Process.spawn(*cmd, :err => [:child, :out], :out => IO::NULL)
       _, status = Process.wait2(pid)
@@ -103,7 +102,7 @@ module Knapsack
         # tar --lzma
         puts "--> Building binary package #{filename}..."
 
-        args = ["tar", "--lzma", "-cf"]
+        args = ["bsdtar", "--lzma", "-cf"]
         args << pkg_name
         args << "-I" << entries_list
         args << "-C" << path
